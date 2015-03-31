@@ -219,6 +219,7 @@ INSTALLED_APPS = (
     'dash.utils',
 
     # custom
+    'tracpro.unsolicited',
     'tracpro.contacts',
     'tracpro.groups',
     'tracpro.home',
@@ -309,6 +310,8 @@ PERMISSIONS = {
 
     'polls.response': ('by_issue', 'by_contact'),
 
+    'unsolicited.unsolicited': ('list', 'read'),
+
     # can't create profiles.user.* permissions because we don't own User
     'profiles.profile': ('user_create', 'user_read', 'user_update', 'user_list'),
 }
@@ -326,6 +329,7 @@ GROUP_PERMISSIONS = {
         'polls.poll.*',
         'polls.issue.*',
         'polls.response.*',
+        'unsolicited.unsolicited.*',
         'profiles.profile.*',
     ),
     "Editors": (
@@ -399,6 +403,11 @@ CELERYBEAT_SCHEDULE = {
         'task': 'tracpro.polls.tasks.fetch_all_runs',
         'schedule': datetime.timedelta(minutes=5),
         'args': ()
+    },
+    'fetch-unsolicited':{
+        'task': 'tracpro.unsolicited.tasks.fetch_all_unsolicited',
+        'schedule': datetime.timedelta(minutes=10),
+        'args':()
     }
 }
 

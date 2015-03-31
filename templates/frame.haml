@@ -113,6 +113,9 @@
                       %li
                         %a{ href:"{% url 'msgs.message_list' %}" }
                           - trans "Message Log"
+                    %li
+                      %a{ href:"{% url 'unsolicited.unsolicited_list' %}" }
+                        - trans "Unsolicited Messages"
 
               - if org and request.user.is_authenticated
                 %li

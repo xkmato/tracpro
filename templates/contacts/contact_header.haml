@@ -27,6 +27,9 @@
     %li{ class:"{% if_url 'msgs.message_by_contact' 'active' '' %}" }
       %a{ href:"{% url 'msgs.message_by_contact' contact.pk %}" }
         - trans "Messages"
+    %li{ class:"{% if_url 'unsolicited.unsolicited_by_contact' 'active' '' %}" }
+      %a{ href:"{% url 'unsolicited.unsolicited_by_contact' contact.pk %}" }
+        - trans "Unsolicited"
 
 %form#delete-form{ method:"post", action:"{% url 'contacts.contact_delete' contact.pk %}" }
   {% csrf_token %}
