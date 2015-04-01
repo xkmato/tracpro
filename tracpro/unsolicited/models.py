@@ -1,6 +1,7 @@
 import datetime
 from celery.utils.log import get_task_logger
 from dash.orgs.models import Org
+from django.contrib.auth.models import User
 from django.db import models
 from tracpro.contacts.models import Contact
 
@@ -23,16 +24,34 @@ class Unsolicited(models.Model):
     def fetch_and_update(cls, org):
         client = org.get_temba_client()
         if Unsolicited.objects.exists():
-            latest = Unsolicited.objects.latest('created_on').created_on + datetime.timedelta(0, 0.5)#Adding 1/2 sec(rapidpro will with the time after)
+            latest = Unsolicited.objects.latest('created_on').created_on
             messages = client.get_messages(directions=['I'], _types=['I'], after=latest)
         else:
             messages = client.get_messages(directions=['I'], _types=['I'])
         _messages = []
-        for message in messages:
+        for i in range(len(messages)):
+            message = messages.pop(i)
             try:
+                if Unsolicited.objects.filter(contact=Contact.get_or_fetch(org, message.contact), org=org,
+                                              status=message.status, text=message.text, created_on=message.created_on,
+                                              delivered_on=message.delivered_on).exists():
+                    logger.info("Message sent on %s Already exists" % str(message.created_on))
+                    continue
                 _messages.append(
                     Unsolicited(contact=Contact.get_or_fetch(org, message.contact), org=org, status=message.status,
-                                text=message.text, created_on=message.created_on, delivered_on=message.delivered_on))
+                                text=message.text, created_on=message.created_on,
+                                delivered_on=message.delivered_on))
             except Exception as e:
                 logger.error("Message skipped - Reason:", e)
         Unsolicited.objects.bulk_create(_messages)
+
+
+class Reply(models.Model):
+    reply_to = models.ForeignKey(Unsolicited, related_name='replies')
+    reply_by = models.ForeignKey(User, related_name='unsolicited_replies')
+    text = models.TextField()
+    created_on = models.DateTimeField(auto_now_add=True)
+
+    def to_json(self):
+        return dict(id=self.pk, text=self.text, reply_to=self.reply_to_id, reply_by=self.reply_by_id,
+                    created_on=str(self.created_on))

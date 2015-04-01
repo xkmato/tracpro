@@ -1,0 +1,12 @@
+- extends "smartmin/list.html"
+- load smartmin i18n
+
+-block extra-script
+  {{ block.super }}
+  :javascript
+    $(document).ready(function(){
+      $(".reply-form").submit(function(event){
+        alert("Form Sumitted");
+        event.preventDefault();
+      })
+     }

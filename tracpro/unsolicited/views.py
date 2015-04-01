@@ -1,10 +1,22 @@
 from dash.orgs.views import OrgObjPermsMixin, OrgPermsMixin
 from dash.utils import get_obj_cacheable
-from smartmin.views import SmartCRUDL, SmartReadView, SmartListView
+from django import forms
+from django.core.urlresolvers import reverse
+from django.http import JsonResponse
+from django.utils.safestring import mark_safe
+from django.views.decorators.csrf import csrf_exempt
+from smartmin.views import SmartCRUDL, SmartReadView, SmartListView, SmartCreateView
 from tracpro.contacts.models import Contact
-from tracpro.unsolicited.models import Unsolicited
+from tracpro.unsolicited.models import Unsolicited, Reply
 
 __author__ = 'awesome'
+
+
+class ReplyForm(forms.ModelForm):
+    class Meta:
+        model = Reply
+        exclude = ('reply_by',)
+        widgets = {'reply_to': forms.HiddenInput(), 'text': forms.TextInput}
 
 
 class UnsolicitedCRUDL(SmartCRUDL):
@@ -23,14 +35,16 @@ class UnsolicitedCRUDL(SmartCRUDL):
     class List(OrgPermsMixin, SmartListView):
         default_order = ('contact__name',)
         search_fields = ('contact__name__icontains', 'contact__urn__icontains', 'text__icontains', 'status')
-        link_fields = ('reply',)
+        template_name = 'unsolicited/unsolicited_list.haml'
 
         def derive_fields(self):
             return ['contact.name', 'contact.urn', 'status', 'text', 'created_on', 'delivered_on', 'reply']
 
         def lookup_field_value(self, context, obj, field):
             if field == 'reply':
-                return '<i class="glyphicon glyphicon-edit"></i>'
+                return mark_safe(
+                    '<form id="reply-%d" action="%s" method="post" class="reply-form">%s</form>' % (
+                        obj.pk, "/reply/send/", ReplyForm(initial={'reply_to': obj.pk}).as_p()))
             return super(UnsolicitedCRUDL.List, self).lookup_field_value(context, obj, field)
 
         def derive_queryset(self, **kwargs):
@@ -55,6 +69,7 @@ class UnsolicitedCRUDL(SmartCRUDL):
         def derive_contact(self):
             def fetch():
                 return Contact.objects.get(pk=self.kwargs['contact'], org=self.request.org)
+
             return get_obj_cacheable(self, '_contact', fetch)
 
         def derive_queryset(self, **kwargs):
@@ -67,3 +82,23 @@ class UnsolicitedCRUDL(SmartCRUDL):
 
         def lookup_field_link(self, context, field, obj):
             return super(UnsolicitedCRUDL.ByContact, self).lookup_field_link(context, field, obj)
+
+
+class ReplyCRUDL(SmartCRUDL):
+    model = Reply
+    actions = ('send',)
+
+    class Send(OrgPermsMixin, SmartCreateView):
+        def post(self, request, *args, **kwargs):
+            _form = ReplyForm(request.POST)
+            if _form.is_valid():
+                reply = _form.save(commit=False)
+                reply.reply_by = request.user
+                reply.save()
+                return JsonResponse(reply.to_json())
+            print "Invalid Form"
+            return JsonResponse(_form.errors)
+
+        @csrf_exempt
+        def dispatch(self, request, *args, **kwargs):
+            return super(ReplyCRUDL.Send, self).dispatch(request, *args, **kwargs)
