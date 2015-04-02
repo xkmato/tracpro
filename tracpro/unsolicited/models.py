@@ -63,6 +63,24 @@ class Reply(models.Model):
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=QUEUED)
     created_on = models.DateTimeField(auto_now_add=True)
 
+    def __unicode__(self):
+        return "%s, by %s" % (self.text[:10], self.reply_by.username)
+
     def to_json(self):
         return dict(id=self.pk, text=self.text, reply_to=self.reply_to_id, reply_by=self.reply_by_id,
                     created_on=str(self.created_on))
+
+    @classmethod
+    def send_queued(cls, org):
+        client = org.get_temba_client()
+        for message in cls.objects.filter(status=cls.QUEUED):
+            try:
+                client.create_broadcast(message.text, contacts=[message.reply_to.contact.uuid])
+                message.status = cls.SENT
+                logger.info("Sent message %d from user #%d" % (message.pk, message.reply_by.pk))
+            except Exception as e:
+                # TODO use that e
+                message.status = cls.FAILED
+                logger.error("Sending message %d failed" % message.pk, exc_info=1)
+            message.save(update_fields=('status',))
+

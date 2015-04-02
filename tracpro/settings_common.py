@@ -406,8 +406,13 @@ CELERYBEAT_SCHEDULE = {
     },
     'fetch-unsolicited':{
         'task': 'tracpro.unsolicited.tasks.fetch_all_unsolicited',
-        'schedule': datetime.timedelta(minutes=10),
+        'schedule': datetime.timedelta(minutes=15),
         'args':()
+    },
+    'send-replies':{
+        'task': 'tracpro.unsolicited.tasks.push_all_queued_messages',
+        'schedule': datetime.timedelta(minutes=5),
+        'args': ()
     }
 }
 
