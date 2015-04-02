@@ -1,8 +1,8 @@
-import datetime
 from celery.utils.log import get_task_logger
 from dash.orgs.models import Org
 from django.contrib.auth.models import User
 from django.db import models
+from django.utils.translation import ugettext_lazy as _
 from tracpro.contacts.models import Contact
 
 __author__ = 'awesome'
@@ -16,6 +16,10 @@ class Unsolicited(models.Model):
     text = models.TextField()
     created_on = models.DateTimeField()
     delivered_on = models.DateTimeField(null=True)
+
+    class Meta:
+        verbose_name = "Query & Feedback"
+        verbose_name_plural = "Queries & Feedback"
 
     def __unicode__(self):
         return "%s, by %s" % (self.text[:10], self.contact.urn)
@@ -47,9 +51,16 @@ class Unsolicited(models.Model):
 
 
 class Reply(models.Model):
+    QUEUED = 'Q'
+    SENT = 'S'
+    FAILED = 'F'
+
+    STATUS_CHOICES = ((QUEUED, _('Queued')), (SENT, _('Sent')), (FAILED, _('Failed')))
+
     reply_to = models.ForeignKey(Unsolicited, related_name='replies')
     reply_by = models.ForeignKey(User, related_name='unsolicited_replies')
     text = models.TextField()
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=QUEUED)
     created_on = models.DateTimeField(auto_now_add=True)
 
     def to_json(self):

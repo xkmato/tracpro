@@ -1,12 +1,26 @@
 - extends "smartmin/list.html"
 - load smartmin i18n
 
+- block messages
+  #alert
+
 -block extra-script
   {{ block.super }}
+  <script src="http://malsup.github.com/jquery.form.js"></script>
   :javascript
-    $(document).ready(function(){
-      $(".reply-form").submit(function(event){
-        alert("Form Sumitted");
-        event.preventDefault();
-      })
-     }
+    $(document).ready(function() {
+      $('form').ajaxForm({
+          dataType:  'json',
+          success:   processJson,
+          error: errorAlert
+      });
+    });
+
+    function processJson(data){
+      var html = '<div class="alert alert-success" role="alert">Reply Successfully sent</div>';
+      $('#reply-'+data.reply_to).parent().html(html);
+    }
+
+    function errorAlert(){
+      $('#alert').html("Something went wrong, Please try again later").attr('class', 'alert alert-danger alert-dismissible').attr('role', 'alert');
+    }

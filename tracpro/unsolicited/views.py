@@ -1,7 +1,6 @@
 from dash.orgs.views import OrgObjPermsMixin, OrgPermsMixin
 from dash.utils import get_obj_cacheable
 from django import forms
-from django.core.urlresolvers import reverse
 from django.http import JsonResponse
 from django.utils.safestring import mark_safe
 from django.views.decorators.csrf import csrf_exempt
@@ -15,8 +14,8 @@ __author__ = 'awesome'
 class ReplyForm(forms.ModelForm):
     class Meta:
         model = Reply
-        exclude = ('reply_by',)
-        widgets = {'reply_to': forms.HiddenInput(), 'text': forms.TextInput}
+        exclude = ('reply_by', 'status')
+        widgets = {'reply_to': forms.HiddenInput()}
 
 
 class UnsolicitedCRUDL(SmartCRUDL):
@@ -34,17 +33,22 @@ class UnsolicitedCRUDL(SmartCRUDL):
 
     class List(OrgPermsMixin, SmartListView):
         default_order = ('contact__name',)
-        search_fields = ('contact__name__icontains', 'contact__urn__icontains', 'text__icontains', 'status')
+        search_fields = ('contact__name__icontains', 'contact__urn__icontains', 'text__icontains')
         template_name = 'unsolicited/unsolicited_list.haml'
 
         def derive_fields(self):
-            return ['contact.name', 'contact.urn', 'status', 'text', 'created_on', 'delivered_on', 'reply']
+            return ['contact.name', 'contact.urn', 'text', 'created_on', 'delivered_on', 'reply']
 
         def lookup_field_value(self, context, obj, field):
+            if field.lower().endswith('urn'):
+                return obj.contact.urn.split(":")[1]
             if field == 'reply':
-                return mark_safe(
-                    '<form id="reply-%d" action="%s" method="post" class="reply-form">%s</form>' % (
-                        obj.pk, "/reply/send/", ReplyForm(initial={'reply_to': obj.pk}).as_p()))
+                replies = ""
+                if obj.replies.exists():
+                    replies = '<p>%d replies to this query or feedback already exist</p>' % obj.replies.count()
+                return '%s<form id="reply-%d" action="%s" method="post" class="reply-form">%s<p><button type="submit"' \
+                       ' class="button button-info">Send</button></p></form>' % (
+                        replies, obj.pk, "/reply/send/", ReplyForm(initial={'reply_to': obj.pk}).as_p())
             return super(UnsolicitedCRUDL.List, self).lookup_field_value(context, obj, field)
 
         def derive_queryset(self, **kwargs):
@@ -60,7 +64,8 @@ class UnsolicitedCRUDL(SmartCRUDL):
             return super(UnsolicitedCRUDL.List, self).lookup_field_link(context, field, obj)
 
     class ByContact(OrgPermsMixin, SmartListView):
-        fields = ('text', 'created_on', 'delivered_on')
+        fields = ('text', 'created_on', 'reply')
+        link_fields = []
 
         @classmethod
         def derive_url_pattern(cls, path, action):
@@ -82,6 +87,16 @@ class UnsolicitedCRUDL(SmartCRUDL):
 
         def lookup_field_link(self, context, field, obj):
             return super(UnsolicitedCRUDL.ByContact, self).lookup_field_link(context, field, obj)
+
+        def lookup_field_value(self, context, obj, field):
+            if field == 'reply':
+                replies = ""
+                if obj.replies.exists():
+                    replies = '<p>%d replies to this query or feedback already exist</p>' % obj.replies.count()
+                return '%s<form id="reply-%d" action="%s" method="post" class="reply-form">%s<p><button type="submit"' \
+                       ' class="button button-info">Send</button></p></form>' % (
+                        replies, obj.pk, "/reply/send/", ReplyForm(initial={'reply_to': obj.pk}).as_p())
+            return super(UnsolicitedCRUDL.ByContact, self).lookup_field_value(context, obj, field)
 
 
 class ReplyCRUDL(SmartCRUDL):
