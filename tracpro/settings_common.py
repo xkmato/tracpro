@@ -310,7 +310,9 @@ PERMISSIONS = {
 
     'polls.response': ('by_issue', 'by_contact'),
 
-    'unsolicited.unsolicited': ('list', 'read'),
+    'unsolicited.unsolicited': ('list', 'read', 'by_contact'),
+
+    'unsolicited.reply': ('send',),
 
     # can't create profiles.user.* permissions because we don't own User
     'profiles.profile': ('user_create', 'user_read', 'user_update', 'user_list'),
@@ -330,6 +332,7 @@ GROUP_PERMISSIONS = {
         'polls.issue.*',
         'polls.response.*',
         'unsolicited.unsolicited.*',
+        'unsolicited.reply.*',
         'profiles.profile.*',
     ),
     "Editors": (
