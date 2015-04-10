@@ -65,3 +65,6 @@ docs/_build/
 
 # PyBuilder
 target/
+tracpro/dev_settings.py
+tracpro/playground
+celerybeat-schedule
