@@ -1,5 +1,4 @@
 from __future__ import absolute_import, unicode_literals
-from celery.utils.log import get_task_logger
 
 from dash.orgs.models import Org
 from dash.utils import intersection
@@ -11,8 +10,6 @@ from temba.types import Contact as TembaContact
 from tracpro.groups.models import Region, Group
 from uuid import uuid4
 from .tasks import push_contact_change
-
-logger = get_task_logger(__name__)
 
 
 class Contact(models.Model):
@@ -100,12 +97,11 @@ class Contact(models.Model):
 
         org_region_uuids = [r.uuid for r in Region.get_all(org)]
         region_uuids = intersection(org_region_uuids, temba_contact.groups)
-        if len(region_uuids) > 0:
-            region = Region.objects.filter(org=org, uuid__in=region_uuids).first() if region_uuids else None
-            if not region:  # pragma: no cover
-                raise ValueError("No region with UUID in %s" % ", ".join(temba_contact.groups))
-        else:
-            raise ValueError("Contact with UUID #%s does not belong to any region" % temba_contact.uuid)
+        region = Region.objects.get(org=org, uuid=region_uuids[0]) if region_uuids else None
+
+        if not region:  # pragma: no cover
+            raise ValueError(
+                "No region with UUID in %s for contact #%s" % (", ".join(temba_contact.groups), temba_contact.uuid))
 
         org_group_uuids = [g.uuid for g in Group.get_all(org)]
         group_uuids = intersection(org_group_uuids, temba_contact.groups)
